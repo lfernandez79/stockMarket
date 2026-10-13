@@ -239,8 +239,10 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
               sortedHoldings.map((h) => {
                 const totalVal = h.shares * h.currentPrice;
                 const totalCost = h.shares * h.costBasisPerShare;
-                const dayChangePct = ((h.currentPrice - h.previousClose) / h.previousClose) * 100;
-                const dayChangeDollar = h.shares * (h.currentPrice - h.previousClose);
+                // Day change is unknown until a live quote arrives — show "—", never NaN.
+                const hasDayData = typeof h.previousClose === 'number' && h.previousClose > 0;
+                const dayChangePct = hasDayData ? ((h.currentPrice - h.previousClose!) / h.previousClose!) * 100 : null;
+                const dayChangeDollar = hasDayData ? h.shares * (h.currentPrice - h.previousClose!) : null;
 
                 const totalReturnDollar = totalVal - totalCost;
                 const totalReturnPct = totalCost > 0 ? (totalReturnDollar / totalCost) * 100 : 0;
@@ -306,13 +308,19 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
 
                     {/* Today's Change */}
                     <td className="py-3.5 px-4 text-right font-mono">
-                      <div className={`font-bold flex items-center justify-end gap-0.5 ${isDayUp ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {isDayUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                        {isDayUp ? '+' : ''}${dayChangeDollar.toFixed(2)}
-                      </div>
-                      <div className={`text-[11px] font-semibold ${isDayUp ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        ({isDayUp ? '+' : ''}{dayChangePct.toFixed(2)}%)
-                      </div>
+                      {dayChangePct === null || dayChangeDollar === null ? (
+                        <div className="font-bold text-slate-400">—</div>
+                      ) : (
+                        <>
+                          <div className={`font-bold flex items-center justify-end gap-0.5 ${isDayUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {isDayUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                            {isDayUp ? '+' : ''}${dayChangeDollar.toFixed(2)}
+                          </div>
+                          <div className={`text-[11px] font-semibold ${isDayUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            ({isDayUp ? '+' : ''}{dayChangePct.toFixed(2)}%)
+                          </div>
+                        </>
+                      )}
                     </td>
 
                     {/* Total Profit/Loss */}
