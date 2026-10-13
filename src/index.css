@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+/* Custom Scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Infinite Marquee Ticker */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
+}
+
+/* Theme Overrides & Global Utility Classes */
+
+/* 1. SLATE CORPORATE NAVY (Default) */
+.theme-slate body,
+.theme-slate .app-container {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+.theme-slate .theme-card {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+.theme-slate .theme-subcard {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  color: #1e293b;
+}
+.theme-slate .theme-text-primary {
+  color: #0f172a;
+}
+.theme-slate .theme-text-secondary {
+  color: #64748b;
+}
+.theme-slate .theme-table-header {
+  background-color: #f8fafc;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+.theme-slate .theme-table-row {
+  border-color: #f1f5f9;
+}
+
+/* 2. OBSIDIAN DARK PRO */
+.theme-dark {
+  color-scheme: dark;
+}
+.theme-dark body,
+.theme-dark .app-container {
+  background-color: #0b0f17 !important;
+  color: #f1f5f9 !important;
+}
+.theme-dark .theme-card {
+  background-color: #111827 !important;
+  border-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+}
+.theme-dark .theme-subcard {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #f9fafb !important;
+}
+.theme-dark .theme-text-primary {
+  color: #f8fafc !important;
+}
+.theme-dark .theme-text-secondary {
+  color: #94a3b8 !important;
+}
+.theme-dark .theme-table-header {
+  background-color: #111827 !important;
+  color: #94a3b8 !important;
+  border-color: #1f2937 !important;
+}
+.theme-dark .theme-table-row {
+  border-color: #1f2937 !important;
+}
+.theme-dark .theme-table-row:hover {
+  background-color: #1e293b !important;
+}
+
+/* 3. EMERALD WEALTH */
+.theme-emerald body,
+.theme-emerald .app-container {
+  background-color: #f0fdf4 !important;
+  color: #064e3b !important;
+}
+.theme-emerald .theme-card {
+  background-color: #ffffff !important;
+  border-color: #a7f3d0 !important;
+  color: #064e3b !important;
+}
+.theme-emerald .theme-subcard {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #065f46 !important;
+}
+.theme-emerald .theme-text-primary {
+  color: #064e3b !important;
+}
+.theme-emerald .theme-text-secondary {
+  color: #047857 !important;
+}
+.theme-emerald .theme-table-header {
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important;
+  border-color: #a7f3d0 !important;
+}
+.theme-emerald .theme-table-row {
+  border-color: #a7f3d0 !important;
+}
+.theme-emerald .theme-table-row:hover {
+  background-color: #d1fae5 !important;
+}
+
+/* 4. MIDNIGHT OLED */
+.theme-midnight {
+  color-scheme: dark;
+}
+.theme-midnight body,
+.theme-midnight .app-container {
+  background-color: #000000 !important;
+  color: #f4f4f5 !important;
+}
+.theme-midnight .theme-card {
+  background-color: #09090b !important;
+  border-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+.theme-midnight .theme-subcard {
+  background-color: #18181b !important;
+  border-color: #27272a !important;
+  color: #fafafa !important;
+}
+.theme-midnight .theme-text-primary {
+  color: #fafafa !important;
+}
+.theme-midnight .theme-text-secondary {
+  color: #a1a1aa !important;
+}
+.theme-midnight .theme-table-header {
+  background-color: #09090b !important;
+  color: #a1a1aa !important;
+  border-color: #27272a !important;
+}
+.theme-midnight .theme-table-row {
+  border-color: #18181b !important;
+}
+.theme-midnight .theme-table-row:hover {
+  background-color: #18181b !important;
+}
+
+/* 5. WARM EDITORIAL (Financial Times / Bloomberg) */
+.theme-editorial body,
+.theme-editorial .app-container {
+  background-color: #fbf9f5 !important;
+  color: #2c2416 !important;
+}
+.theme-editorial .theme-card {
+  background-color: #fffdf9 !important;
+  border-color: #e7e0d3 !important;
+  color: #2c2416 !important;
+}
+.theme-editorial .theme-subcard {
+  background-color: #f5f0e6 !important;
+  border-color: #e2d9c8 !important;
+  color: #3d3221 !important;
+}
+.theme-editorial .theme-text-primary {
+  color: #1e1910 !important;
+}
+.theme-editorial .theme-text-secondary {
+  color: #786952 !important;
+}
+.theme-editorial .theme-table-header {
+  background-color: #f5f0e6 !important;
+  color: #5c4f3b !important;
+  border-color: #e7e0d3 !important;
+}
+.theme-editorial .theme-table-row {
+  border-color: #f0e9dc !important;
+}
+.theme-editorial .theme-table-row:hover {
+  background-color: #f2ede4 !important;
+}
+

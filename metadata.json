@@ -1,0 +1,6 @@
+{
+  "name": "Holdings Tracker",
+  "description": "Track stock & ETF holdings, monitor real-time prices, customize dividend & performance alert rules, import CSV holdings, and get AI portfolio insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
