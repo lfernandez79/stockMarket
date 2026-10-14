@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { PortfolioOverview } from './components/PortfolioOverview';
 import { PerformanceChart } from './components/PerformanceChart';
@@ -20,6 +20,7 @@ import { INITIAL_HOLDINGS, INITIAL_ALERT_RULES, GENERATE_HISTORICAL_DATA } from 
 import { generateRandomSampleHoldings } from './utils/sampleGenerator';
 import { calculatePortfolioSummary, simulateMarketTick, evaluateAlertRules, fetchLiveMarketQuotes, calculateForwardYield, getKnownDividendRate, getKnownDividendYield } from './utils/marketEngine';
 import { playAlertChime } from './utils/audioChime';
+import { useLiveTicks, LiveTick } from './hooks/useLiveTicks';
 
 export default function App() {
   // Holdings state with localStorage persistence and automatic dividend migration
@@ -194,13 +195,47 @@ export default function App() {
     }
   }, []);
 
+  // Apply real-time trade ticks (WebSocket streaming) onto holdings.
+  // Ticks carry price only — full quote fields still come from the REST poll.
+  const applyTicks = useCallback((ticks: LiveTick[]) => {
+    if (ticks.length === 0) return;
+    const bySymbol = new Map(ticks.map((t) => [t.symbol.toUpperCase(), t]));
+    setHoldings((prev) =>
+      prev.map((h) => {
+        const tick = bySymbol.get(h.symbol.toUpperCase());
+        if (!tick) return h;
+        const prevPrice = h.currentPrice;
+        return {
+          ...h,
+          currentPrice: tick.price,
+          dayHigh: h.dayHigh != null ? Math.max(h.dayHigh, tick.price) : tick.price,
+          dayLow: h.dayLow != null ? Math.min(h.dayLow, tick.price) : tick.price,
+          lastTickDirection:
+            tick.price > prevPrice ? 'up' : tick.price < prevPrice ? 'down' : h.lastTickDirection,
+          sparkline: [...h.sparkline.slice(-29), tick.price],
+        };
+      })
+    );
+    setLastSyncTime(new Date().toLocaleTimeString());
+  }, []);
+
+  const holdingSymbols = holdings.map((h) => h.symbol);
+  const streamState = useLiveTicks(
+    holdingSymbols,
+    isLiveUpdating && dataProvider === 'yahoo',
+    applyTicks
+  );
+
   // Compute overall summary
   const summary = calculatePortfolioSummary(holdings);
 
   // Live Market Auto Refresh Loop
+  // When streaming, REST polling slows to 60s (ticks carry prices; the poll
+  // refreshes everything else and covers non-streamed symbols like mutual funds).
   useEffect(() => {
     if (!isLiveUpdating) return;
 
+    const pollInterval = streamState === 'streaming' ? 60000 : updateInterval;
     const timer = setInterval(() => {
       if (dataProvider === 'yahoo') {
         fetchLiveQuotesNow();
@@ -229,10 +264,10 @@ export default function App() {
         });
         setLastSyncTime(new Date().toLocaleTimeString());
       }
-    }, updateInterval);
+    }, pollInterval);
 
     return () => clearInterval(timer);
-  }, [isLiveUpdating, updateInterval, soundEnabled, dataProvider]);
+  }, [isLiveUpdating, updateInterval, soundEnabled, dataProvider, streamState]);
 
   // Manual Refresh Handler
   const handleManualRefresh = () => {
@@ -436,6 +471,7 @@ export default function App() {
         isLiveUpdating={isLiveUpdating}
         setIsLiveUpdating={setIsLiveUpdating}
         lastSyncTime={lastSyncTime}
+        streamState={streamState}
         isRefreshing={isRefreshing}
         soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled}

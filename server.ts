@@ -4,6 +4,7 @@ import { rateLimit } from 'express-rate-limit';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { marketData, providerLabels } from './marketProviders.js';
+import { streamHub } from './streaming.js';
 
 dotenv.config();
 
@@ -432,9 +433,12 @@ app.use('/api/', (_req, res) => {
 });
 
 // Start listening immediately on 0.0.0.0 and PORT so health checks pass right away
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
+
+// Real-time trade streaming hub (Finnhub WebSocket -> browsers)
+streamHub.attach(server);
 
 // Vite Middleware & Production Static Serving setup
 async function setupMiddlewares() {

@@ -12,12 +12,14 @@ import {
   Sun
 } from 'lucide-react';
 import { Holding, TriggeredAlert } from '../types';
+import type { StreamState } from '../hooks/useLiveTicks';
 
 interface HeaderProps {
   holdings: Holding[];
   isLiveUpdating: boolean;
   setIsLiveUpdating: (val: boolean) => void;
   lastSyncTime: string | null;
+  streamState: StreamState;
   isRefreshing: boolean;
   soundEnabled: boolean;
   setSoundEnabled: (val: boolean) => void;
@@ -37,6 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   isLiveUpdating,
   setIsLiveUpdating,
   lastSyncTime,
+  streamState,
   isRefreshing,
   soundEnabled,
   setSoundEnabled,
@@ -164,6 +167,25 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-xs text-slate-400 hidden sm:inline font-mono">
             Sync: <span className="text-slate-200">{lastSyncTime || 'Just now'}</span>
           </span>
+          {streamState === 'streaming' ? (
+            <span
+              className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-emerald-700/60 bg-emerald-950/90 text-emerald-400 font-mono font-bold text-[10px] tracking-wider"
+              title="Real-time trade streaming via Finnhub WebSocket"
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              </span>
+              STREAMING
+            </span>
+          ) : streamState === 'polling' && isLiveUpdating ? (
+            <span
+              className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md border border-slate-700 bg-slate-800/90 text-slate-400 font-mono font-bold text-[10px] tracking-wider"
+              title="Polling quotes — streaming unavailable (no Finnhub key or reconnecting)"
+            >
+              POLLING
+            </span>
+          ) : null}
         </div>
 
         {/* News Outlet Style Infinite Ticker Carousel */}
