@@ -145,6 +145,8 @@ export const AddEditPositionModal: React.FC<AddEditPositionModalProps> = ({
     const safeCostBasis = !isNaN(numCostBasis) && numCostBasis >= 0 ? numCostBasis : safeCurrentPrice;
     const safeDividendYield = !isNaN(numDividendYield) && numDividendYield >= 0 ? numDividendYield : 0;
 
+    // Market fields are unknown until a live quote arrives — never invent them.
+    // The quote poller fills these in from the provider within seconds.
     onSave({
       id: initialHolding ? initialHolding.id : undefined,
       symbol: symbol.trim().toUpperCase(),
@@ -152,18 +154,18 @@ export const AddEditPositionModal: React.FC<AddEditPositionModalProps> = ({
       shares: numShares,
       costBasisPerShare: safeCostBasis,
       currentPrice: safeCurrentPrice,
-      previousClose: Number((safeCurrentPrice * 0.99).toFixed(2)),
-      dayHigh: Number((safeCurrentPrice * 1.01).toFixed(2)),
-      dayLow: Number((safeCurrentPrice * 0.98).toFixed(2)),
-      '52WeekHigh': Number((safeCurrentPrice * 1.2).toFixed(2)),
-      '52WeekLow': Number((safeCurrentPrice * 0.8).toFixed(2)),
-      volume: '15.2M',
-      marketCap: '$300B',
+      previousClose: null,
+      dayHigh: null,
+      dayLow: null,
+      '52WeekHigh': null,
+      '52WeekLow': null,
+      volume: null,
+      marketCap: null,
       dividendYield: safeDividendYield,
       accountType,
       assetType,
       purchaseDate,
-      sparkline: [safeCurrentPrice * 0.97, safeCurrentPrice * 0.98, safeCurrentPrice * 0.99, safeCurrentPrice]
+      sparkline: []
     });
 
     onClose();

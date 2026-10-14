@@ -39,7 +39,6 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({
 
   // Derive metrics fallback cleanly for QQQI or any stock/ETF
   const extMetrics = holding.extendedMetrics || {};
-  const isEtf = holding.assetType === 'ETF' || holding.symbol === 'QQQI' || holding.symbol === 'SPY' || holding.symbol === 'QQQ';
   
   const currentPrice = holding.currentPrice;
   const prevClose = holding.previousClose;
@@ -47,27 +46,28 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({
   const dayChangePct = (dayChange / prevClose) * 100;
   const isGain = dayChange >= 0;
 
-  // Key metrics values (Matching QQQI accurately)
-  const openPrice = extMetrics.open ?? (holding.dayLow + (holding.dayHigh - holding.dayLow) * 0.3);
-  const bidVal = extMetrics.bid ?? `${(currentPrice - 0.01).toFixed(2)} x 100`;
-  const askVal = extMetrics.ask ?? `${currentPrice.toFixed(2)} x 5400`;
-  const volumeVal = holding.volume || '4,294,309';
-  const avgVolumeVal = extMetrics.avgVolume || '6,462,166';
-  const netAssetsVal = extMetrics.netAssets || holding.marketCap || '$13.11B';
-  const navVal = extMetrics.nav ?? (prevClose - 0.02);
-  const peRatioVal = extMetrics.peRatioTTM ?? holding.peRatio ?? (isEtf ? 30.80 : 28.5);
-  const yieldVal = calculateForwardYield(holding.annualDividendRate, holding.currentPrice, holding.symbol, holding.assetType);
-  const ytdReturnVal = extMetrics.ytdReturnPct ?? 6.89;
-  const betaVal = extMetrics.beta5Y ?? (isEtf ? 0.00 : 1.15);
-  const expenseRatioVal = extMetrics.expenseRatioNet ?? (isEtf ? 0.68 : null);
+  // Key metrics values — real data or null ("—" in the UI). Never invent numbers.
+  const dash = (v: any) => (v === null || v === undefined || v === '' ? '—' : v);
+  const dashFixed = (v: any, digits = 2) =>
+    typeof v === 'number' && isFinite(v) ? v.toFixed(digits) : '—';
 
-  const fundFamily = extMetrics.fundFamily || (holding.symbol === 'QQQI' ? 'Neos Funds' : 'Fidelity / BlackRock');
-  const fundCategory = extMetrics.fundCategory || (holding.symbol === 'QQQI' ? 'Derivative Income' : 'Large Cap Growth');
-  const inceptionDate = extMetrics.inceptionDate || (holding.symbol === 'QQQI' ? '2024-01-29' : '2010-05-18');
-  const descriptionText = extMetrics.description || (holding.symbol === 'QQQI' 
-    ? 'The fund is an actively-managed exchange-traded fund ("ETF") that seeks to achieve its investment objective by investing in a portfolio of stocks that make up the Nasdaq-100® Index and a call options strategy, that consists of written (sold) call options on the Nasdaq-100® Index. Under normal circumstances, at least 80% of the fund’s net assets, plus borrowings for investment purposes, will be invested in financial instruments that provide exposure to the Nasdaq-100® Index.'
-    : `${holding.name} (${holding.symbol}) is a premier ${holding.assetType} listed on major US exchanges, tracked for portfolio performance and real-time intraday trading analytics.`
-  );
+  const openPrice = extMetrics.open ?? null;
+  const bidVal = extMetrics.bid ?? null;
+  const askVal = extMetrics.ask ?? null;
+  const volumeVal = holding.volume || null;
+  const avgVolumeVal = extMetrics.avgVolume || null;
+  const netAssetsVal = extMetrics.netAssets || holding.marketCap || null;
+  const navVal = extMetrics.nav ?? null;
+  const peRatioVal = extMetrics.peRatioTTM ?? holding.peRatio ?? null;
+  const yieldVal = calculateForwardYield(holding.annualDividendRate, holding.currentPrice, holding.symbol, holding.assetType);
+  const ytdReturnVal = extMetrics.ytdReturnPct ?? null;
+  const betaVal = extMetrics.beta5Y ?? null;
+  const expenseRatioVal = extMetrics.expenseRatioNet ?? null;
+
+  const fundFamily = extMetrics.fundFamily || null;
+  const fundCategory = extMetrics.fundCategory || null;
+  const inceptionDate = extMetrics.inceptionDate || null;
+  const descriptionText = extMetrics.description || null;
 
   // Range percentage calculations for visual bars
   const dayRangeMin = holding.dayLow;
@@ -402,18 +402,18 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">Net Assets</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{netAssetsVal}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{dash(netAssetsVal)}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">YTD Daily Total Return</span>
-                <span className="text-base font-extrabold font-mono text-emerald-600 mt-1">+{ytdReturnVal}%</span>
+                <span className="text-base font-extrabold font-mono text-emerald-600 mt-1">{ytdReturnVal != null ? `+${ytdReturnVal}%` : '—'}</span>
               </div>
 
               {/* Row 2 */}
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">Open</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">${openPrice.toFixed(2)}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">${dashFixed(openPrice)}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
@@ -430,28 +430,28 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">NAV</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">${navVal.toFixed(2)}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">${dashFixed(navVal)}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">Beta (5Y Monthly)</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{betaVal.toFixed(2)}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{dashFixed(betaVal)}</span>
               </div>
 
               {/* Row 3 */}
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">Bid</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{bidVal}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{dash(bidVal)}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">Volume</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{volumeVal}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{dash(volumeVal)}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">PE Ratio (TTM)</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{peRatioVal.toFixed(2)}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{dashFixed(peRatioVal)}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
@@ -464,12 +464,12 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({
               {/* Row 4 */}
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">Ask</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{askVal}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{dash(askVal)}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">Avg. Volume</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{avgVolumeVal}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{dash(avgVolumeVal)}</span>
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
@@ -481,7 +481,7 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({
 
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500">Inception Date</span>
-                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{inceptionDate}</span>
+                <span className="text-base font-extrabold font-mono text-slate-900 mt-1">{dash(inceptionDate)}</span>
               </div>
 
             </div>
@@ -495,28 +495,28 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({
             </h2>
 
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              {descriptionText}
+              {dash(descriptionText)}
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t border-slate-200/80">
               <div>
                 <span className="text-xs font-medium text-slate-400 block">Fund Family</span>
-                <strong className="text-sm font-bold text-slate-900 mt-0.5 block">{fundFamily}</strong>
+                <strong className="text-sm font-bold text-slate-900 mt-0.5 block">{dash(fundFamily)}</strong>
               </div>
 
               <div>
                 <span className="text-xs font-medium text-slate-400 block">Fund Category</span>
-                <strong className="text-sm font-bold text-slate-900 mt-0.5 block">{fundCategory}</strong>
+                <strong className="text-sm font-bold text-slate-900 mt-0.5 block">{dash(fundCategory)}</strong>
               </div>
 
               <div>
                 <span className="text-xs font-medium text-slate-400 block">Net Assets</span>
-                <strong className="text-sm font-bold text-slate-900 mt-0.5 block">{netAssetsVal}</strong>
+                <strong className="text-sm font-bold text-slate-900 mt-0.5 block">{dash(netAssetsVal)}</strong>
               </div>
 
               <div>
                 <span className="text-xs font-medium text-slate-400 block">Inception Date</span>
-                <strong className="text-sm font-bold text-slate-900 mt-0.5 block">{inceptionDate}</strong>
+                <strong className="text-sm font-bold text-slate-900 mt-0.5 block">{dash(inceptionDate)}</strong>
               </div>
             </div>
           </div>

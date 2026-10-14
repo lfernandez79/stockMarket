@@ -267,6 +267,8 @@ export default function App() {
         ? positionData.dividendYield
         : getKnownDividendYield(sym, aType);
 
+      // Market fields stay null until the quote poller fills them from the
+      // provider — never fall back to invented numbers.
       const newHolding: Holding = {
         id: `hold-${Date.now()}`,
         symbol: sym,
@@ -274,18 +276,18 @@ export default function App() {
         shares: positionData.shares || 10,
         costBasisPerShare: positionData.costBasisPerShare || 100,
         currentPrice: positionData.currentPrice || 100,
-        previousClose: positionData.previousClose || 99,
-        dayHigh: positionData.dayHigh || 101,
-        dayLow: positionData.dayLow || 98,
-        '52WeekHigh': positionData['52WeekHigh'] || 120,
-        '52WeekLow': positionData['52WeekLow'] || 80,
-        volume: '10M',
-        marketCap: '$200B',
+        previousClose: positionData.previousClose ?? null,
+        dayHigh: positionData.dayHigh ?? null,
+        dayLow: positionData.dayLow ?? null,
+        '52WeekHigh': positionData['52WeekHigh'] ?? null,
+        '52WeekLow': positionData['52WeekLow'] ?? null,
+        volume: positionData.volume ?? null,
+        marketCap: positionData.marketCap ?? null,
         dividendYield: divYield,
         accountType: positionData.accountType || 'Fidelity Individual Brokerage',
         assetType: aType,
         purchaseDate: positionData.purchaseDate || new Date().toISOString().split('T')[0],
-        sparkline: [98, 99, 100],
+        sparkline: positionData.sparkline ?? [],
         lastTickDirection: 'up'
       };
       setHoldings((prev) => [newHolding, ...prev]);

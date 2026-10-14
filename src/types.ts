@@ -39,13 +39,14 @@ export interface Holding {
   shares: number;
   costBasisPerShare: number;
   currentPrice: number;
-  previousClose: number;
-  dayHigh: number;
-  dayLow: number;
-  '52WeekHigh': number;
-  '52WeekLow': number;
-  volume: string;
-  marketCap: string;
+  // Market fields are null until a live quote arrives — never invented.
+  previousClose: number | null;
+  dayHigh: number | null;
+  dayLow: number | null;
+  '52WeekHigh': number | null;
+  '52WeekLow': number | null;
+  volume: string | null;
+  marketCap: string | null;
   peRatio?: number | null;
   dividendYield?: number | null;
   annualDividendRate?: number | null;
