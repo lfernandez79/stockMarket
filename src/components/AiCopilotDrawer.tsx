@@ -70,10 +70,23 @@ export const AiCopilotDrawer: React.FC<AiCopilotDrawerProps> = ({
     })
       .then((res) => res.json())
       .then((data) => {
+        if (!data.reply) {
+          // Honest error message — never substitute a fabricated reassurance.
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `err-${Date.now()}`,
+              sender: 'ai',
+              text: 'No reply received from the AI. Please try again.',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          ]);
+          return;
+        }
         const aiMsg: CopilotMessage = {
           id: `ai-${Date.now()}`,
           sender: 'ai',
-          text: data.reply || 'I analyzed your request against your portfolio holdings.',
+          text: data.reply,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           suggestedActions: data.suggestedActions || []
         };

@@ -400,7 +400,11 @@ Guidelines:
       },
     });
 
-    const replyText = response.text || 'I analyzed your portfolio request. Everything appears well structured.';
+    const replyText = response.text?.trim();
+    if (!replyText) {
+      // An empty model reply is a failure — never substitute a fabricated reassurance.
+      return res.status(502).json({ error: 'AI returned no reply. Please try again.' });
+    }
 
     // Extract suggested actions if present
     let textOnly = replyText;

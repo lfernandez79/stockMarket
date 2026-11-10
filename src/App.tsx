@@ -449,17 +449,19 @@ export default function App() {
       if (!res.ok) throw new Error('AI Server response error');
 
       const data = await res.json();
-      const explanation = data.explanation || 'Catalyst analysis completed.';
+      // An empty explanation is a failure, not a completed analysis.
+      if (!data.explanation) throw new Error('AI returned no explanation');
+
+      const explanation = data.explanation;
 
       setTriggeredAlerts((prev) =>
-        prev.map((a) => (a.id === alertItem.id ? { ...a, aiExplanation: explanation, read: true } : a))
+        prev.map((a) => (a.id === alertItem.id ? { ...a, aiExplanation: explanation, aiExplanationError: undefined, read: true } : a))
       );
     } catch (err) {
       console.error('Error fetching AI alert explanation:', err);
-      // Offline fallback explanation
-      const fallback = `Market Catalyst Analysis for ${alertItem.symbol || 'Portfolio'}:\n\n1. Recent trading volume & tech momentum created price volatility breaking threshold.\n2. Long-term Fidelity outlook remains strong with dollar-cost averaging in index funds.\n3. Recommendation: Monitor stop loss levels and verify account allocation balances.`;
+      // Honest error notice — never present fabricated analysis as AI output.
       setTriggeredAlerts((prev) =>
-        prev.map((a) => (a.id === alertItem.id ? { ...a, aiExplanation: fallback, read: true } : a))
+        prev.map((a) => (a.id === alertItem.id ? { ...a, aiExplanationError: 'AI explanation unavailable right now — please try again.', read: true } : a))
       );
     }
   };
