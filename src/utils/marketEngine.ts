@@ -599,18 +599,18 @@ export const generatePortfolioHistoricalData = (
   const now = new Date();
   const points: import('../types').HistoricalDataPoint[] = [];
 
-  // Live reference benchmark indices (S&P 500, NASDAQ, Dow Jones)
-  const currentSp500 = 5634.50;
-  const currentNasdaq = 18054.20;
-  const currentDow = 40768.10;
+  // Local calendar date (YYYY-MM-DD) for each generated point. The portfolio
+  // series is still simulated (anchored to current value / cost basis), but
+  // its dates are real calendar dates — this key is what the chart uses to
+  // align REAL benchmark history onto the portfolio series. Benchmark values
+  // no longer come from this generator at all.
+  const dateKeyOf = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   if (timeframe === '1D') {
     // 8 intraday checkpoints across trading day (9:30 AM to 4:00 PM)
     const hours = ['9:30 AM', '10:30 AM', '11:30 AM', '12:30 PM', '1:30 PM', '2:30 PM', '3:30 PM', '4:00 PM'];
     const prevClosePort = safePortValue - dayGainLoss;
-    const prevCloseSp = 5618.20;
-    const prevCloseNas = 17985.40;
-    const prevCloseDow = 40690.10;
 
     const progressFactors = [0.0, 0.25, 0.40, 0.35, 0.55, 0.70, 0.90, 1.0];
 
@@ -623,26 +623,12 @@ export const generatePortfolioHistoricalData = (
         ? safePortValue 
         : Number((prevClosePort + (safePortValue - prevClosePort) * prog + wobble).toFixed(2));
       
-      const spVal = idx === hours.length - 1
-        ? currentSp500
-        : Number((prevCloseSp + (currentSp500 - prevCloseSp) * prog).toFixed(2));
-
-      const nasVal = idx === hours.length - 1
-        ? currentNasdaq
-        : Number((prevCloseNas + (currentNasdaq - prevCloseNas) * prog).toFixed(2));
-
-      const dowVal = idx === hours.length - 1
-        ? currentDow
-        : Number((prevCloseDow + (currentDow - prevCloseDow) * prog).toFixed(2));
-
       const dayPct = prevClosePort > 0 ? Number((((portVal - prevClosePort) / prevClosePort) * 100).toFixed(2)) : 0;
 
       points.push({
         date: timeStr,
+        dateKey: dateKeyOf(now),
         portfolioValue: portVal,
-        sp500Benchmark: Math.round(spVal),
-        nasdaqBenchmark: Math.round(nasVal),
-        dowBenchmark: Math.round(dowVal),
         dayGainPct: dayPct
       });
     });
@@ -671,31 +657,16 @@ export const generatePortfolioHistoricalData = (
     : 0.085;
 
   let periodPortReturn = 0.0209; // +2.09% for 1M baseline
-  let periodSpReturn = 0.0219;    // +2.19% for 1M baseline
-  let periodNasReturn = 0.0147;   // +1.47% for 1M baseline
-  let periodDowReturn = 0.0063;   // +0.63% for 1M baseline
 
   if (timeframe === '1W') {
     periodPortReturn = 0.0095;
-    periodSpReturn = 0.0082;
-    periodNasReturn = 0.0075;
-    periodDowReturn = 0.0040;
   } else if (timeframe === '1Y') {
     periodPortReturn = Math.min(0.24, Math.max(0.08, totalReturnTarget * 0.7));
-    periodSpReturn = 0.185;
-    periodNasReturn = 0.214;
-    periodDowReturn = 0.128;
   } else if (timeframe === 'ALL') {
     periodPortReturn = Math.min(0.65, Math.max(0.15, totalReturnTarget));
-    periodSpReturn = 0.42;
-    periodNasReturn = 0.48;
-    periodDowReturn = 0.28;
   }
 
   const startPort = safePortValue / (1 + periodPortReturn);
-  const startSp = currentSp500 / (1 + periodSpReturn);
-  const startNas = currentNasdaq / (1 + periodNasReturn);
-  const startDow = currentDow / (1 + periodDowReturn);
 
   for (let i = count; i >= 0; i--) {
     const d = new Date(now);
@@ -711,36 +682,20 @@ export const generatePortfolioHistoricalData = (
     const progress = (count - i) / count; // 0.0 to 1.0
     const seed = i * 7 + 42;
     
-    // Deterministic market curve with natural volatility
+    // Deterministic market curve with natural volatility (portfolio only —
+    // benchmarks no longer simulated here)
     const cyclePort = Math.sin(progress * Math.PI * 2.5) * 0.008 + (deterministicRatio(seed) - 0.48) * 0.006;
-    const cycleSp = Math.sin(progress * Math.PI * 2.2 + 0.3) * 0.007 + (deterministicRatio(seed + 1) - 0.48) * 0.005;
-    const cycleNas = Math.sin(progress * Math.PI * 2.8 + 0.5) * 0.010 + (deterministicRatio(seed + 2) - 0.48) * 0.008;
-    const cycleDow = Math.sin(progress * Math.PI * 1.8 + 0.1) * 0.005 + (deterministicRatio(seed + 3) - 0.48) * 0.004;
 
     const portVal = i === 0 
       ? safePortValue 
       : Number((startPort + (safePortValue - startPort) * progress + startPort * cyclePort).toFixed(2));
 
-    const spVal = i === 0
-      ? currentSp500
-      : Number((startSp + (currentSp500 - startSp) * progress + startSp * cycleSp).toFixed(2));
-
-    const nasVal = i === 0
-      ? currentNasdaq
-      : Number((startNas + (currentNasdaq - startNas) * progress + startNas * cycleNas).toFixed(2));
-
-    const dowVal = i === 0
-      ? currentDow
-      : Number((startDow + (currentDow - startDow) * progress + startDow * cycleDow).toFixed(2));
-
     const dayGainPct = startPort > 0 ? Number((((portVal - startPort) / startPort) * 100).toFixed(2)) : 0;
 
     points.push({
       date: dateStr,
+      dateKey: dateKeyOf(d),
       portfolioValue: portVal,
-      sp500Benchmark: Math.round(spVal),
-      nasdaqBenchmark: Math.round(nasVal),
-      dowBenchmark: Math.round(dowVal),
       dayGainPct
     });
   }
