@@ -415,13 +415,19 @@ export default function App() {
 
   // Test Trigger Rule
   const handleTestTriggerAlert = (rule: AlertRule) => {
+    const testHolding = rule.symbol ? holdings.find((h) => h.symbol === rule.symbol) : undefined;
+    const testDayChangePct =
+      testHolding && testHolding.previousClose
+        ? ((testHolding.currentPrice - testHolding.previousClose) / testHolding.previousClose) * 100
+        : undefined;
     const testAlert: TriggeredAlert = {
       id: `trig-test-${Date.now()}`,
       ruleId: rule.id,
       title: `[TEST TRIGGER] ${rule.title}`,
       description: `Test alert for ${rule.symbol || 'Portfolio'}. Rule threshold (${rule.type.includes('PCT') ? `${rule.thresholdValue}%` : `$${rule.thresholdValue}`}) evaluated successfully.`,
       symbol: rule.symbol,
-      triggeredPrice: rule.symbol ? holdings.find((h) => h.symbol === rule.symbol)?.currentPrice : undefined,
+      triggeredPrice: testHolding?.currentPrice,
+      priceChangePercent: testDayChangePct !== undefined && isFinite(testDayChangePct) ? Number(testDayChangePct.toFixed(2)) : undefined,
       severity: rule.severity,
       triggeredAt: new Date().toISOString(),
       read: false
@@ -442,7 +448,8 @@ export default function App() {
           alertTitle: alertItem.title,
           alertDescription: alertItem.description,
           symbol: alertItem.symbol,
-          currentPrice: alertItem.triggeredPrice
+          currentPrice: alertItem.triggeredPrice,
+          priceChangePercent: alertItem.priceChangePercent
         })
       });
 

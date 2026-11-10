@@ -88,6 +88,10 @@ export interface TriggeredAlert {
   description: string;
   symbol?: string;
   triggeredPrice?: number;
+  /** Day change % at trigger time, computed from real quote fields.
+   *  Absent for portfolio alerts that have no single symbol (the server
+   *  then treats it as "not provided" rather than 0%). */
+  priceChangePercent?: number;
   triggeredAt: string; // ISO string
   severity: AlertSeverity;
   read: boolean;
