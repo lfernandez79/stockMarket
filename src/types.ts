@@ -112,10 +112,10 @@ export interface PortfolioSummary {
 export interface HistoricalDataPoint {
   date: string;
   portfolioValue: number;
-  sp500Benchmark: number;
-  nasdaqBenchmark?: number;
-  dowBenchmark?: number;
   dayGainPct: number;
+  /** Local calendar date (YYYY-MM-DD) of this point — the key the chart uses
+   *  to align real benchmark history onto the portfolio series. */
+  dateKey?: string;
 }
 
 export interface AiPortfolioAnalysis {
