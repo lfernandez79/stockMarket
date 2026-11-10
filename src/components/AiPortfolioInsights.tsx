@@ -43,35 +43,8 @@ export const AiPortfolioInsights: React.FC<AiPortfolioInsightsProps> = ({
     } catch (err: any) {
       console.error('AI Portfolio Insights Error:', err);
       setError(err.message || 'Error generating AI insights.');
-      // Fallback offline analysis
-      setAnalysis({
-        healthScore: 88,
-        summary: "Strong core foundation utilizing index funds and high-growth individual equities (NVDA, MSFT, QQQI). Overall diversification is healthy with ample cash buffers in money market assets.",
-        strengths: [
-          "Low cost ratio allocation in IRA index funds",
-          "Balanced risk exposure between megacap tech and broad S&P 500 ETF (VOO)",
-          "Core money market reserve providing yield liquidity"
-        ],
-        risks: [
-          "Overweight technology exposure (NVDA + MSFT comprise significant weight)",
-          "Potential sector overlap between index funds and individual megacap stocks"
-        ],
-        portfolioRecommendations: [
-          "Consider tax-loss harvesting in taxable brokerage accounts if pullbacks occur",
-          "Reinvest monthly dividend payouts automatically into core index funds",
-          "Rebalance individual stock weightings if tech sector exceeds 40% of total assets"
-        ],
-        fidelityRecommendations: [
-          "Consider tax-loss harvesting in taxable brokerage accounts if pullbacks occur",
-          "Reinvest monthly dividend payouts automatically into core index funds",
-          "Rebalance individual stock weightings if tech sector exceeds 40% of total assets"
-        ],
-        sectorBreakdownEstimate: [
-          { sector: "Technology", percentage: 48 },
-          { sector: "Broad S&P Index", percentage: 35 },
-          { sector: "Money Market / Cash", percentage: 17 }
-        ]
-      });
+      // No fallback content: never present fabricated analysis as AI output.
+      setAnalysis(null);
     } finally {
       setLoading(false);
     }
@@ -115,6 +88,19 @@ export const AiPortfolioInsights: React.FC<AiPortfolioInsightsProps> = ({
           </div>
         ) : (
           <div className="space-y-5 text-xs">
+            {/* Error state — shown instead of any analysis when generation fails */}
+            {error && !analysis && (
+              <div className="p-5 bg-red-50 border border-red-200 rounded-xl text-center">
+                <h4 className="font-bold text-red-900 text-sm">AI analysis unavailable</h4>
+                <p className="text-red-700 leading-relaxed mt-1">{error}</p>
+                <button
+                  onClick={fetchAiAnalysis}
+                  className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-xs inline-flex items-center gap-1.5 transition-all"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" /> Retry
+                </button>
+              </div>
+            )}
             {/* Health Score & Overview Card */}
             {analysis && (
               <div className="p-5 bg-gradient-to-r from-purple-900 to-slate-900 text-white rounded-2xl shadow-lg relative overflow-hidden">

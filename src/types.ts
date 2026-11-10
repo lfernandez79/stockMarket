@@ -92,6 +92,7 @@ export interface TriggeredAlert {
   severity: AlertSeverity;
   read: boolean;
   aiExplanation?: string;
+  aiExplanationError?: string;
 }
 
 export interface PortfolioSummary {

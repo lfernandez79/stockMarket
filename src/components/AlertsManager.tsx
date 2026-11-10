@@ -227,6 +227,18 @@ export const AlertsManager: React.FC<AlertsManagerProps> = ({
                             </p>
                           </div>
                         )}
+
+                        {/* AI Explanation Error — visibly an error, never analysis content */}
+                        {alert.aiExplanationError && (
+                          <div className="mt-3 p-3 bg-red-50/80 border border-red-200 rounded-lg text-xs text-red-900">
+                            <div className="font-bold flex items-center gap-1.5 text-red-800">
+                              <AlertTriangle className="h-3.5 w-3.5" /> AI explanation unavailable
+                            </div>
+                            <p className="mt-1 leading-relaxed">
+                              {alert.aiExplanationError}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
