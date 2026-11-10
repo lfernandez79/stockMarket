@@ -96,6 +96,28 @@ function num(v: any): number | null {
   return typeof v === 'number' && isFinite(v) ? v : null;
 }
 
+/**
+ * Start of the current day in America/New_York, as a true UTC instant.
+ * Market data is US-market-time based; using the host's local midnight
+ * breaks the 1D range on hosts running ahead of NY time (e.g. a UTC
+ * server in the evening, where local midnight is already after the US
+ * market close, so Yahoo returns zero intraday bars). DST edge: the
+ * offset is measured at "now", so on a DST transition day the start
+ * may be off by up to an hour — harmless, Yahoo still returns the
+ * day's bars.
+ */
+function startOfDayNY(): Date {
+  const now = new Date();
+  // Date whose *host-local* fields equal New York wall-clock time now.
+  const nyNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const nyMidnightWall = new Date(nyNow);
+  nyMidnightWall.setHours(0, 0, 0, 0);
+  // Difference between NY wall time and true time.
+  const offsetMs = nyNow.getTime() - now.getTime();
+  // True instant of NY midnight = wall midnight minus that offset.
+  return new Date(nyMidnightWall.getTime() - offsetMs);
+}
+
 function emptyQuote(symbol: string, source: string): Quote {
   return {
     symbol,
@@ -231,11 +253,10 @@ class YahooProvider implements MarketProvider {
     const now = new Date();
     const day = 86400000;
     // Map UI ranges to Yahoo chart params (v3 chart API uses period1/period2).
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
+    // 1D uses start-of-day in America/New_York, not host-local midnight.
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const presets: Record<string, { period1: Date; interval: string }> = {
-      '1D': { period1: startOfDay, interval: '15m' },
+      '1D': { period1: startOfDayNY(), interval: '15m' },
       '5D': { period1: new Date(now.getTime() - 5 * day), interval: '1d' },
       '1M': { period1: new Date(now.getTime() - 30 * day), interval: '1d' },
       '6M': { period1: new Date(now.getTime() - 182 * day), interval: '1d' },

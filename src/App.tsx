@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { PortfolioOverview } from './components/PortfolioOverview';
 import { PerformanceChart } from './components/PerformanceChart';
+import { IndexCharts } from './components/IndexCharts';
 import { HoldingsTable } from './components/HoldingsTable';
 import { AllocationChart } from './components/AllocationChart';
 import { AlertsManager } from './components/AlertsManager';
@@ -530,6 +531,9 @@ export default function App() {
               dayGainLossPct={summary.dayGainLossPct}
               totalCostBasis={summary.totalCostBasis}
             />
+
+            {/* Market Indices — S&P 500, NASDAQ, Dow (real provider data) */}
+            <IndexCharts />
 
             {/* Owned Holdings Table */}
             <HoldingsTable
