@@ -5,6 +5,18 @@ import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { marketData, providerLabels } from './marketProviders.js';
 import { streamHub } from './streaming.js';
+import {
+  AI_CONFIG,
+  AI_MODEL,
+  AI_TIMEOUT_MS,
+  ANALYSIS_RESPONSE_SCHEMA,
+  buildExplainPrompt,
+  buildPortfolioAnalysisPrompt,
+  computeHealthScore,
+  computeSectorBreakdown,
+  validateAnalysis,
+  type AnalysisHolding,
+} from './aiHelpers.js';
 
 dotenv.config();
 
@@ -269,6 +281,9 @@ app.get('/api/market/screener', async (req, res) => {
 // is intentionally out of scope; holdings come from CSV import.
 
 // API: AI Portfolio Analysis
+// Health score + sector breakdown are computed server-side from real data
+// (see aiHelpers.ts) and handed to the model as facts. The model narrates;
+// it never invents a number. Output is schema-constrained and validated.
 app.post('/api/ai/portfolio-analysis', async (req, res) => {
   try {
     const ai = getAiClient();
@@ -277,49 +292,87 @@ app.post('/api/ai/portfolio-analysis', async (req, res) => {
     }
 
     const { holdings, totalValue, dayGain, totalGain } = req.body;
+    if (!Array.isArray(holdings)) {
+      return res.status(400).json({ error: 'holdings must be an array.' });
+    }
+    const cleanHoldings: AnalysisHolding[] = holdings
+      .filter((h: any) => h && typeof h.symbol === 'string')
+      .map((h: any) => ({
+        symbol: String(h.symbol).toUpperCase(),
+        shares: Number(h.shares),
+        currentPrice: Number(h.currentPrice),
+        assetType: typeof h.assetType === 'string' ? h.assetType : undefined,
+      }));
 
-    const holdingsSummary = holdings.map((h: any) =>
-      `- ${h.symbol} (${h.name}): ${h.shares} shares @ $${h.currentPrice} (Avg Cost: $${h.costBasisPerShare}, Account: ${h.accountType}, Type: ${h.assetType}, Value: $${(h.shares * h.currentPrice).toFixed(2)})`
-    ).join('\n');
+    const holdingsSummary = holdings.map((h: any) => {
+      const value = Number(h.shares) * Number(h.currentPrice);
+      return `- ${h.symbol} (${h.name}): ${h.shares} shares @ $${h.currentPrice} (Avg Cost: $${h.costBasisPerShare}, Account: ${h.accountType}, Type: ${h.assetType}, Value: $${isFinite(value) ? value.toFixed(2) : 'N/A'})`;
+    }).join('\n');
 
-    const prompt = `You are a top-tier financial portfolio analyst specializing in personal investment and brokerage accounts. Analyze the following portfolio:
+    // Real sector per holding from the provider layer (cached 60 min).
+    // One symbol failing must not fail the analysis — it becomes Unclassified.
+    const sectorResults = await Promise.allSettled(
+      cleanHoldings.map((h) => marketData.getFundamentals(h.symbol)),
+    );
+    const sectorBySymbol: Record<string, string | null> = {};
+    sectorResults.forEach((r, i) => {
+      sectorBySymbol[cleanHoldings[i].symbol] = r.status === 'fulfilled' ? (r.value.sector ?? null) : null;
+    });
+    const sectorBreakdown = computeSectorBreakdown(cleanHoldings, sectorBySymbol);
+    const health = computeHealthScore(cleanHoldings);
 
-Portfolio Metrics:
-Total Value: $${totalValue?.toLocaleString() || '0'}
-Today's Gain/Loss: $${dayGain?.toLocaleString() || '0'}
-Total Gain/Loss: $${totalGain?.toLocaleString() || '0'}
-
-Current Holdings:
-${holdingsSummary}
-
-Provide a concise, highly insightful analysis structured as JSON with the following format:
-{
-  "healthScore": 88, // integer 0-100
-  "summary": "2-3 sentences overview of portfolio strength and concentration",
-  "strengths": ["Strength 1", "Strength 2"],
-  "risks": ["Risk 1 or concentration warning", "Risk 2"],
-  "portfolioRecommendations": [
-    "Specific portfolio optimization (e.g. tax loss harvesting, core cash yield optimization, or rebalancing)"
-  ],
-  "sectorBreakdownEstimate": [
-    {"sector": "Technology", "percentage": 45},
-    {"sector": "Broad Market Index", "percentage": 30},
-    {"sector": "Cash / Cash Equivalents", "percentage": 25}
-  ]
-}
-Return ONLY valid JSON matching this schema.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const prompt = buildPortfolioAnalysisPrompt({
+      holdingsSummary,
+      totalValue: typeof totalValue === 'number' && isFinite(totalValue) ? totalValue : null,
+      dayGain: typeof dayGain === 'number' && isFinite(dayGain) ? dayGain : null,
+      totalGain: typeof totalGain === 'number' && isFinite(totalGain) ? totalGain : null,
+      asOf: new Date().toISOString(),
+      healthScore: health.score,
+      healthFacts: health,
+      sectorBreakdown,
     });
 
-    const jsonText = response.text || '{}';
-    const analysis = JSON.parse(jsonText);
-    return res.json(analysis);
+    const generate = async () => {
+      const response = await ai.models.generateContent({
+        model: AI_MODEL,
+        contents: prompt,
+        config: {
+          temperature: AI_CONFIG.analysis.temperature,
+          maxOutputTokens: AI_CONFIG.analysis.maxOutputTokens,
+          responseMimeType: 'application/json',
+          responseSchema: ANALYSIS_RESPONSE_SCHEMA,
+          httpOptions: { timeout: AI_TIMEOUT_MS },
+        },
+      });
+      return response.text || '';
+    };
+
+    // Validate strictly; one retry on malformed output, then an honest error.
+    let lastReason = 'empty response';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(await generate());
+      } catch {
+        lastReason = 'model returned invalid JSON';
+        continue;
+      }
+      const checked = validateAnalysis(parsed);
+      if (checked.ok === false) {
+        // NOTE: `!checked.ok` does not narrow this union under this
+        // project's non-strict tsconfig; the explicit comparison does.
+        lastReason = checked.reason;
+        continue;
+      }
+      // The numbers in the response are the server-computed facts, whatever
+      // the model echoed — the model never gets to set them.
+      const analysis = checked.value;
+      analysis.healthScore = health.score;
+      analysis.sectorBreakdownEstimate = sectorBreakdown;
+      return res.json(analysis);
+    }
+    console.error('AI portfolio analysis failed validation:', lastReason);
+    return res.status(502).json({ error: 'AI returned an invalid analysis. Please try again.' });
   } catch (error: any) {
     console.error('Error generating AI portfolio analysis:', error);
     return res.status(500).json({ error: 'Failed to generate portfolio analysis: ' + error.message });
@@ -327,6 +380,9 @@ Return ONLY valid JSON matching this schema.`;
 });
 
 // API: Explain Alert / Market Movement Catalyst
+// Grounded: the explanation is built from real recent headlines fetched
+// server-side for the symbol. When no headline explains the move, the model
+// must say so — it never speculates about a cause.
 app.post('/api/ai/explain-alert', async (req, res) => {
   try {
     const ai = getAiClient();
@@ -335,27 +391,63 @@ app.post('/api/ai/explain-alert', async (req, res) => {
     }
 
     const { alertTitle, alertDescription, symbol, currentPrice, priceChangePercent } = req.body;
+    const sym = typeof symbol === 'string' ? symbol.trim().toUpperCase() : '';
 
-    const prompt = `You are a real-time stock market analyst explaining a triggered performance alert for a user's portfolio holding.
+    // Recent headlines for the symbol. The news fetch gets its own short
+    // budget so a slow provider can't stall the endpoint; if it fails we
+    // proceed with prices only and the prompt says so.
+    let headlines: { title: string; publisher: string | null; publishedAt: string | null }[] = [];
+    let newsUnavailable = false;
+    if (sym) {
+      try {
+        const news = await Promise.race([
+          marketData.getNews([sym], 5),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('news fetch timed out')), 8000),
+          ),
+        ]);
+        headlines = (news.articles || []).map((a) => ({
+          title: a.title,
+          publisher: a.publisher ?? null,
+          publishedAt: a.publishedAt ?? null,
+        }));
+      } catch (e) {
+        newsUnavailable = true;
+        console.warn('Explain-alert news fetch failed, proceeding with prices only:', (e as Error).message);
+      }
+    }
 
-Alert Details:
-Title: ${alertTitle}
-Message: ${alertDescription}
-Symbol: ${symbol || 'PORTFOLIO'}
-Current Price: $${currentPrice || 'N/A'}
-Price Change: ${priceChangePercent || '0'}%
-
-Explain in 3 short, punchy paragraphs:
-1. What likely caused this movement (key catalysts, earnings, macroeconomic factors, or technical break).
-2. What this means for a long-term Fidelity investor.
-3. Recommended action or monitoring checklist (e.g., set stop loss, review target weight, or do nothing).`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: prompt,
+    const price = typeof currentPrice === 'number' && isFinite(currentPrice) ? currentPrice : null;
+    const pct =
+      typeof priceChangePercent === 'number' && isFinite(priceChangePercent)
+        ? Math.round(priceChangePercent * 100) / 100
+        : null;
+    const prompt = buildExplainPrompt({
+      alertTitle: String(alertTitle || 'Alert'),
+      alertDescription: String(alertDescription || ''),
+      symbol: sym,
+      currentPrice: price,
+      priceChangePercent: pct,
+      asOf: new Date().toISOString(),
+      headlines,
+      newsUnavailable,
     });
 
-    return res.json({ explanation: response.text });
+    const response = await ai.models.generateContent({
+      model: AI_MODEL,
+      contents: prompt,
+      config: {
+        temperature: AI_CONFIG.explain.temperature,
+        maxOutputTokens: AI_CONFIG.explain.maxOutputTokens,
+        httpOptions: { timeout: AI_TIMEOUT_MS },
+      },
+    });
+
+    const explanation = response.text?.trim();
+    if (!explanation) {
+      return res.status(502).json({ error: 'AI returned no explanation. Please try again.' });
+    }
+    return res.json({ explanation });
   } catch (error: any) {
     console.error('Error explaining alert:', error);
     return res.status(500).json({ error: 'Failed to generate alert explanation.' });
@@ -372,20 +464,29 @@ app.post('/api/ai/copilot-chat', async (req, res) => {
 
     const { userMessage, portfolioContext, chatHistory = [] } = req.body;
 
-    const systemInstruction = `You are the ultimate AI Financial & Investment Copilot built for a high-net-worth investor tracking Fidelity portfolios.
-Your job is to provide institutional-grade stock analysis, portfolio management advice, dividend projections, risk evaluation, and actionable market strategies better than Yahoo Finance Premium or Bloomberg.
+    const asOf = new Date().toISOString();
+    const systemInstruction = `You are a financial copilot for a single investor tracking a Fidelity portfolio in a personal app. The prices and holdings below are a snapshot as of ${asOf}; they may be stale by the time you answer.
+
+Rules:
+- Use ONLY the portfolio data supplied below. Do not invent holdings, prices, yields, news, or performance figures.
+- If the supplied data does not cover the question, say "I don't know based on the portfolio data provided" and say what data would answer it.
+- Do not state price targets, support/resistance levels, or valuation multiples unless they are in the supplied data, or clearly label them as your own estimate and explain the basis.
+- Keep answers concise and grounded in the numbers below.
+- This is educational information, not financial advice.
 
 User Portfolio Summary:
 - Total Portfolio Value: $${portfolioContext?.totalValue?.toLocaleString() || 'N/A'}
 - Today's Gain/Loss: $${portfolioContext?.dayGain?.toLocaleString() || 'N/A'} (${portfolioContext?.dayGainPct || 0}%)
 - Holdings Count: ${portfolioContext?.holdings?.length || 0}
 Holdings Breakdown:
-${(portfolioContext?.holdings || []).map((h: any) => `- ${h.symbol} (${h.name}): ${h.shares} shares @ $${h.currentPrice} (Value: $${(h.shares * h.currentPrice).toFixed(2)}, Account: ${h.accountType})`).join('\n')}
+${(portfolioContext?.holdings || []).map((h: any) => {
+  const value = Number(h.shares) * Number(h.currentPrice);
+  return `- ${h.symbol} (${h.name}): ${h.shares} shares @ $${h.currentPrice} (Value: $${isFinite(value) ? value.toFixed(2) : 'N/A'}, Account: ${h.accountType})`;
+}).join('\n')}
 
 Guidelines:
-- Give concise, actionable, and mathematically grounded financial analysis.
+- Give concise, actionable analysis grounded in the supplied figures.
 - Use formatting (bullet points, bold text, numbers) to make response easy to read.
-- Address specific tickers, technical levels (support/resistance), valuation multiples, or portfolio rebalancing tips when relevant.
 - Always include 2-3 short "Suggested Follow-Up Actions" at the end under a header "[SUGGESTED_ACTIONS]".`;
 
     // Construct prompt with chat history context
@@ -393,10 +494,13 @@ Guidelines:
     const fullPrompt = `${historyFormatted ? `Previous Conversation:\n${historyFormatted}\n\n` : ''}User Question: ${userMessage}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: AI_MODEL,
       contents: fullPrompt,
       config: {
+        temperature: AI_CONFIG.chat.temperature,
+        maxOutputTokens: AI_CONFIG.chat.maxOutputTokens,
         systemInstruction,
+        httpOptions: { timeout: AI_TIMEOUT_MS },
       },
     });
 
