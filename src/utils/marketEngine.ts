@@ -409,6 +409,7 @@ export const evaluateAlertRules = (
           ruleId: rule.id,
           title: rule.title,
           description: `Portfolio overall day change dropped to ${summary.dayGainLossPct.toFixed(2)}% (Threshold: -${Math.abs(rule.thresholdValue)}%). Loss today: -$${Math.abs(summary.dayGainLoss).toLocaleString(undefined, { minimumFractionDigits: 2 })}.`,
+          priceChangePercent: Number(summary.dayGainLossPct.toFixed(2)),
           severity: rule.severity,
           triggeredAt: new Date().toISOString(),
           read: false
@@ -421,6 +422,7 @@ export const evaluateAlertRules = (
           ruleId: rule.id,
           title: rule.title,
           description: `Portfolio overall day gain hit +${summary.dayGainLossPct.toFixed(2)}% (Target: +${rule.thresholdValue}%). Total Gain Today: +$${summary.dayGainLoss.toLocaleString(undefined, { minimumFractionDigits: 2 })}.`,
+          priceChangePercent: Number(summary.dayGainLossPct.toFixed(2)),
           severity: 'gain',
           triggeredAt: new Date().toISOString(),
           read: false
@@ -440,6 +442,7 @@ export const evaluateAlertRules = (
           description: `${targetHolding.symbol} reached high target price $${targetHolding.currentPrice.toFixed(2)} (Threshold: $${rule.thresholdValue.toFixed(2)}).`,
           symbol: targetHolding.symbol,
           triggeredPrice: targetHolding.currentPrice,
+          priceChangePercent: isFinite(dayChangePct) ? Number(dayChangePct.toFixed(2)) : undefined,
           severity: rule.severity,
           triggeredAt: new Date().toISOString(),
           read: false
@@ -452,6 +455,7 @@ export const evaluateAlertRules = (
           description: `${targetHolding.symbol} fell to $${targetHolding.currentPrice.toFixed(2)} (Stop threshold: $${rule.thresholdValue.toFixed(2)}).`,
           symbol: targetHolding.symbol,
           triggeredPrice: targetHolding.currentPrice,
+          priceChangePercent: isFinite(dayChangePct) ? Number(dayChangePct.toFixed(2)) : undefined,
           severity: 'warning',
           triggeredAt: new Date().toISOString(),
           read: false
@@ -465,6 +469,7 @@ export const evaluateAlertRules = (
             description: `${targetHolding.symbol} dropped ${dayChangePct.toFixed(2)}% today (Threshold: ${rule.thresholdValue}%).`,
             symbol: targetHolding.symbol,
             triggeredPrice: targetHolding.currentPrice,
+            priceChangePercent: isFinite(dayChangePct) ? Number(dayChangePct.toFixed(2)) : undefined,
             severity: rule.severity,
             triggeredAt: new Date().toISOString(),
             read: false
@@ -477,6 +482,7 @@ export const evaluateAlertRules = (
             description: `${targetHolding.symbol} jumped +${dayChangePct.toFixed(2)}% today (Target: +${rule.thresholdValue}%).`,
             symbol: targetHolding.symbol,
             triggeredPrice: targetHolding.currentPrice,
+            priceChangePercent: isFinite(dayChangePct) ? Number(dayChangePct.toFixed(2)) : undefined,
             severity: 'gain',
             triggeredAt: new Date().toISOString(),
             read: false

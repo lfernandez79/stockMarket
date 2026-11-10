@@ -56,6 +56,9 @@ export interface SearchResult {
 export interface Fundamentals {
   symbol: string;
   name: string | null;
+  /** GICS-style sector from Yahoo's assetProfile module, or null when Yahoo
+   *  has none (ETFs, mutual funds, and some equities report no sector). */
+  sector: string | null;
   currentPrice: number | null;
   marketCap: number | null;
   peRatio: number | null;
@@ -313,7 +316,7 @@ class YahooProvider implements MarketProvider {
     const qs: any = await withTimeout(
       yf.quoteSummary(
         sym,
-        { modules: ['price', 'summaryDetail', 'defaultKeyStatistics', 'calendarEvents', 'financialData'] },
+        { modules: ['price', 'summaryDetail', 'defaultKeyStatistics', 'calendarEvents', 'financialData', 'assetProfile'] },
         { validateResult: false }
       )
     );
@@ -327,6 +330,8 @@ class YahooProvider implements MarketProvider {
     const ks = qs?.defaultKeyStatistics || {};
     const cal = qs?.calendarEvents || {};
     const fin = qs?.financialData || {};
+    const ap = qs?.assetProfile || {};
+    const sector = typeof ap.sector === 'string' && ap.sector.trim() ? ap.sector.trim() : null;
     const currentPrice = raw(price.regularMarketPrice) ?? raw(sd.currentPrice);
     const divRate = raw(sd.dividendRate);
     let divYield = raw(sd.dividendYield);
@@ -340,6 +345,7 @@ class YahooProvider implements MarketProvider {
     return {
       symbol: sym,
       name: price.longName || price.shortName || null,
+      sector,
       currentPrice,
       marketCap: raw(price.marketCap),
       peRatio: raw(sd.trailingPE) ?? raw(ks.trailingPE),
